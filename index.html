@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Equity Research Generator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #e8e8e8;
+    min-height: 100vh;
+    padding: 1.5rem 1rem 4rem;
+  }
+
+  .container { max-width: 680px; margin: 0 auto; }
+
+  .header { margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 0.5px solid #2a2a2a; }
+  .header h1 { font-size: 18px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
+  .header p { font-size: 13px; color: #666; }
+
+  .input-row { display: flex; gap: 8px; margin-bottom: 0.75rem; }
+  .input-row input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 0.5px solid #333;
+    border-radius: 8px;
+    padding: 0 14px;
+    height: 40px;
+    color: #f0f0f0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    outline: none;
+  }
+  .input-row input:focus { border-color: #555; }
+  .input-row input::placeholder { color: #444; text-transform: none; letter-spacing: 0; }
+
+  .btn {
+    background: #f0f0f0;
+    color: #0f0f0f;
+    border: none;
+    border-radius: 8px;
+    padding: 0 18px;
+    height: 40px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #fff; }
+  .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    color: #888;
+    border: 0.5px solid #333;
+    border-radius: 8px;
+    padding: 0 14px;
+    height: 36px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: #555; color: #bbb; }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 2rem; align-items: center; }
+  .chip-label { font-size: 11px; color: #555; }
+  .chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 0.5px solid #2a2a2a;
+    border-radius: 6px;
+    color: #888;
+    cursor: pointer;
+    background: transparent;
+    font-family: 'SF Mono', monospace;
+  }
+  .chip:hover { border-color: #444; color: #ccc; }
+
+  .loading { display: none; padding: 3rem 0; text-align: center; }
+  .loading.show { display: block; }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 1.5px solid #2a2a2a;
+    border-top-color: #666;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: #555; }
+
+  .result { display: none; }
+  .result.show { display: block; }
+
+  .report-header { margin-bottom: 1.5rem; }
+  .report-name { font-size: 20px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
+  .report-meta { font-size: 12px; color: #555; margin-bottom: 12px; }
+
+  .rating-row { display: flex; align-items: center; gap: 10px; }
+  .rating-badge {
+    font-size: 12px; font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 6px;
+  }
+  .rating-buy { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .rating-hold { background: rgba(234,179,8,0.12); color: #facc15; }
+  .rating-sell { background: rgba(239,68,68,0.12); color: #f87171; }
+  .target-price { font-size: 13px; color: #888; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+  .stat {
+    background: #1a1a1a;
+    border: 0.5px solid #222;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat-label { font-size: 10px; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-val { font-size: 15px; font-weight: 500; color: #e8e8e8; }
+
+  .section { border-top: 0.5px solid #1e1e1e; padding-top: 1.25rem; margin-top: 1.25rem; }
+  .section-title {
+    font-size: 10px; font-weight: 500;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.75rem;
+  }
+  .section-body { font-size: 14px; color: #bbb; line-height: 1.75; }
+
+  .scenarios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 0.75rem; }
+  .scenario { border: 0.5px solid #222; border-radius: 8px; padding: 12px; }
+  .sc-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .sc-price { font-size: 18px; font-weight: 500; margin-bottom: 3px; }
+  .sc-upside { font-size: 11px; }
+  .bull .sc-label { color: #4ade80; }
+  .bull .sc-price { color: #4ade80; }
+  .bull .sc-upside { color: #4ade80; }
+  .base .sc-label { color: #888; }
+  .base .sc-price { color: #e8e8e8; }
+  .base .sc-upside { color: #888; }
+  .bear .sc-label { color: #f87171; }
+  .bear .sc-price { color: #f87171; }
+  .bear .sc-upside { color: #f87171; }
+
+  .monitors { display: flex; flex-direction: column; gap: 8px; }
+  .monitor-item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #bbb; }
+  .monitor-dot { width: 5px; height: 5px; border-radius: 50%; background: #444; margin-top: 6px; flex-shrink: 0; }
+
+  .footer-actions { margin-top: 2rem; display: flex; gap: 8px; }
+  .disclaimer { font-size: 11px; color: #3a3a3a; margin-top: 1.5rem; line-height: 1.6; }
+
+  .error-msg { font-size: 13px; color: #f87171; background: rgba(239,68,68,0.08); border: 0.5px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 12px 14px; margin-top: 1rem; display: none; }
+  .error-msg.show { display: block; }
+  .key-setup { background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; }
+  .key-setup-title { font-size: 13px; font-weight: 500; color: #e8e8e8; margin-bottom: 4px; }
+  .key-setup-sub { font-size: 12px; color: #555; margin-bottom: 12px; }
+  .key-row { display: flex; gap: 8px; }
+  .key-row input { flex: 1; background: #111; border: 0.5px solid #333; border-radius: 8px; padding: 0 12px; height: 36px; color: #e8e8e8; font-family: 'SF Mono', monospace; font-size: 12px; outline: none; }
+  .key-row input:focus { border-color: #555; }
+  .key-saved { font-size: 11px; color: #4ade80; margin-top: 8px; display: none; }
+  .key-saved.show { display: block; }
+  .key-change { font-size: 11px; color: #555; cursor: pointer; margin-top: 6px; display: inline-block; }
+  .key-change:hover { color: #888; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Equity Research Generator</h1>
+    <p>输入股票代码，生成 AI 驱动的机构级研究报告</p>
+  </div>
+
+  <div id="key-section">
+    <div class="key-setup" id="key-input-area">
+      <p class="key-setup-title">Anthropic API Key</p>
+      <p class="key-setup-sub">Key 仅保存在你的浏览器本地，不会上传到任何服务器</p>
+      <div class="key-row">
+        <input type="password" id="key-input" placeholder="sk-ant-api03-..." />
+        <button class="btn" onclick="saveKey()">保存</button>
+      </div>
+      <p class="key-saved" id="key-saved">✓ 已保存，可以开始使用</p>
+    </div>
+    <div id="key-saved-area" style="display:none; margin-bottom:1.5rem;">
+      <span style="font-size:12px; color:#4ade80;">✓ API Key 已配置</span>
+      <span class="key-change" onclick="changeKey()"> · 更换</span>
+    </div>
+  </div>
+
+  <div id="er-form">
+    <div class="input-row">
+      <input type="text" id="er-ticker" placeholder="输入 ticker，如 NVDA" maxlength="10" />
+      <button class="btn" id="er-btn" onclick="generateReport()">生成报告</button>
+    </div>
+    <div class="chips">
+      <span class="chip-label">快捷：</span>
+      <span class="chip" onclick="setTicker('AAPL')">AAPL</span>
+      <span class="chip" onclick="setTicker('NVDA')">NVDA</span>
+      <span class="chip" onclick="setTicker('TSLA')">TSLA</span>
+      <span class="chip" onclick="setTicker('MSFT')">MSFT</span>
+      <span class="chip" onclick="setTicker('AMZN')">AMZN</span>
+      <span class="chip" onclick="setTicker('META')">META</span>
+      <span class="chip" onclick="setTicker('GOOGL')">GOOGL</span>
+    </div>
+    <div class="error-msg" id="er-error"></div>
+  </div>
+
+  <div class="loading" id="er-loading">
+    <div class="spinner"></div>
+    <p class="loading-text" id="er-loading-text">正在抓取市场数据...</p>
+  </div>
+
+  <div class="result" id="er-result">
+    <div class="report-header">
+      <p class="report-name" id="rpt-title"></p>
+      <p class="report-meta" id="rpt-meta"></p>
+      <div class="rating-row">
+        <span class="rating-badge" id="rpt-rating"></span>
+        <span class="target-price" id="rpt-target"></span>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="rpt-stats"></div>
+
+    <div class="section">
+      <p class="section-title">核心投资逻辑</p>
+      <p class="section-body" id="rpt-thesis"></p>
+    </div>
+
+    <div class="section">
+      <p class="section-title">财务表现摘要</p>
+      <p class="section-body" id="rpt-financials"></p>
+    </div>
+
+    <div class="section">
+      <p class="section-title">情景估值</p>
+      <div class="scenarios">
+        <div class="scenario bull">
+          <p class="sc-label">乐观 Bull</p>
+          <p class="sc-price" id="sc-bull-price"></p>
+          <p class="sc-upside" id="sc-bull-upside"></p>
+        </div>
+        <div class="scenario base">
+          <p class="sc-label">基准 Base</p>
+          <p class="sc-price" id="sc-base-price"></p>
+          <p class="sc-upside" id="sc-base-upside"></p>
+        </div>
+        <div class="scenario bear">
+          <p class="sc-label">悲观 Bear</p>
+          <p class="sc-price" id="sc-bear-price"></p>
+          <p class="sc-upside" id="sc-bear-upside"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">核心风险</p>
+      <p class="section-body" id="rpt-risks"></p>
+    </div>
+
+    <div class="section">
+      <p class="section-title">关键监控指标</p>
+      <div class="monitors" id="rpt-monitors"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">综合研判</p>
+      <p class="section-body" id="rpt-conclusion"></p>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn-ghost" onclick="resetForm()">分析另一只股票</button>
+    </div>
+
+    <p class="disclaimer">本报告由 AI 生成，数据来源于公开市场信息，仅供学习研究参考，不构成任何投资建议。投资有风险，决策需谨慎。</p>
+  </div>
+
+</div>
+
+<script>
+const ANTHROPIC_API_KEY = localStorage.getItem('anthropic_api_key') || '';
+
+function saveKey() {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    alert('请输入有效的 Anthropic API Key（以 sk-ant- 开头）');
+    return;
+  }
+  localStorage.setItem('anthropic_api_key', key);
+  document.getElementById('key-input-area').style.display = 'none';
+  document.getElementById('key-saved-area').style.display = 'block';
+}
+
+function changeKey() {
+  localStorage.removeItem('anthropic_api_key');
+  document.getElementById('key-input-area').style.display = 'block';
+  document.getElementById('key-saved-area').style.display = 'none';
+  document.getElementById('key-input').value = '';
+}
+
+function initKeyUI() {
+  const saved = localStorage.getItem('anthropic_api_key');
+  if (saved) {
+    document.getElementById('key-input-area').style.display = 'none';
+    document.getElementById('key-saved-area').style.display = 'block';
+  }
+}
+initKeyUI();
+
+
+  '正在抓取市场数据...',
+  '分析财务报表...',
+  '构建估值模型...',
+  '撰写投资逻辑...',
+  '生成综合研判...'
+];
+
+function setTicker(t) {
+  document.getElementById('er-ticker').value = t;
+}
+
+function resetForm() {
+  document.getElementById('er-result').classList.remove('show');
+  document.getElementById('er-form').style.display = '';
+  document.getElementById('er-error').classList.remove('show');
+  document.getElementById('er-ticker').value = '';
+  document.getElementById('er-btn').disabled = false;
+}
+
+function showError(msg) {
+  const el = document.getElementById('er-error');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('er-form').style.display = '';
+  document.getElementById('er-loading').classList.remove('show');
+  document.getElementById('er-btn').disabled = false;
+}
+
+async function generateReport() {
+  const ticker = document.getElementById('er-ticker').value.trim().toUpperCase();
+  if (!ticker) return;
+
+  const apiKey = localStorage.getItem('anthropic_api_key');
+  if (!apiKey) {
+    showError('请先输入并保存你的 Anthropic API Key');
+    return;
+  }
+
+  document.getElementById('er-error').classList.remove('show');
+  document.getElementById('er-form').style.display = 'none';
+  document.getElementById('er-result').classList.remove('show');
+  document.getElementById('er-btn').disabled = true;
+
+  const loading = document.getElementById('er-loading');
+  loading.classList.add('show');
+
+  let msgIdx = 0;
+  const loadingText = document.getElementById('er-loading-text');
+  const msgInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % loadingMsgs.length;
+    loadingText.textContent = loadingMsgs[msgIdx];
+  }, 2500);
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const prompt = `You are a senior sell-side equity research analyst. Generate a comprehensive equity research report for ${ticker} as of ${today}. Use web search to get current price, financials, and analyst ratings.
+
+Return ONLY a valid JSON object with exactly these fields (no markdown, no backticks, just raw JSON):
+
+{
+  "companyName": "Full company name",
+  "ticker": "${ticker}",
+  "date": "${today}",
+  "currentPrice": "USD XXX.XX",
+  "marketCap": "e.g. $2.1T or $45B",
+  "rating": "Buy or Hold or Sell",
+  "targetPrice": "12-month target e.g. USD 320",
+  "stats": [
+    {"label": "52W High", "value": "XXX.XX"},
+    {"label": "52W Low", "value": "XXX.XX"},
+    {"label": "P/E (TTM)", "value": "XXx"},
+    {"label": "EV/EBITDA", "value": "XXx"},
+    {"label": "毛利率", "value": "XX%"},
+    {"label": "FCF (TTM)", "value": "$XXB"}
+  ],
+  "thesis": "3-5 sentences: core bull thesis, key growth drivers, competitive moat. Be specific with numbers and recent developments.",
+  "financials": "3-4 sentences: revenue trend last 2-3 years, margin trajectory, EPS growth, cash flow quality. Use specific figures.",
+  "bullPrice": "USD XXX",
+  "bullUpside": "+XX%",
+  "basePrice": "USD XXX",
+  "baseUpside": "+X% or -X%",
+  "bearPrice": "USD XXX",
+  "bearUpside": "-XX%",
+  "risks": "Top 3-4 company-specific risks in 3-4 sentences.",
+  "monitors": ["Specific KPI 1", "Specific KPI 2", "Specific KPI 3", "Specific KPI 4"],
+  "conclusion": "2-3 sentences: overall verdict, who should own this stock, key near-term catalyst."
+}`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(msgInterval);
+    loading.classList.remove('show');
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || 'API 请求失败');
+    }
+
+    const data = await resp.json();
+    const fullText = data.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('解析报告失败，请重试');
+    const report = JSON.parse(jsonMatch[0]);
+    renderReport(report);
+
+  } catch (e) {
+    clearInterval(msgInterval);
+    showError('生成失败：' + e.message);
+  }
+}
+
+function renderReport(r) {
+  document.getElementById('rpt-title').textContent = r.companyName + ' (' + r.ticker + ')';
+  document.getElementById('rpt-meta').textContent = r.currentPrice + '  ·  市值 ' + r.marketCap + '  ·  ' + r.date;
+
+  const badge = document.getElementById('rpt-rating');
+  badge.textContent = r.rating;
+  badge.className = 'rating-badge';
+  if (r.rating === 'Buy') badge.classList.add('rating-buy');
+  else if (r.rating === 'Sell') badge.classList.add('rating-sell');
+  else badge.classList.add('rating-hold');
+
+  document.getElementById('rpt-target').textContent = '目标价 ' + r.targetPrice;
+
+  document.getElementById('rpt-stats').innerHTML = (r.stats || []).map(s => `
+    <div class="stat">
+      <p class="stat-label">${s.label}</p>
+      <p class="stat-val">${s.value}</p>
+    </div>
+  `).join('');
+
+  document.getElementById('rpt-thesis').textContent = r.thesis;
+  document.getElementById('rpt-financials').textContent = r.financials;
+
+  document.getElementById('sc-bull-price').textContent = r.bullPrice;
+  document.getElementById('sc-bull-upside').textContent = r.bullUpside;
+  document.getElementById('sc-base-price').textContent = r.basePrice;
+  document.getElementById('sc-base-upside').textContent = r.baseUpside;
+  document.getElementById('sc-bear-price').textContent = r.bearPrice;
+  document.getElementById('sc-bear-upside').textContent = r.bearUpside;
+
+  document.getElementById('rpt-risks').textContent = r.risks;
+
+  document.getElementById('rpt-monitors').innerHTML = (r.monitors || []).map(m => `
+    <div class="monitor-item">
+      <div class="monitor-dot"></div>
+      <span>${m}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('rpt-conclusion').textContent = r.conclusion;
+  document.getElementById('er-result').classList.add('show');
+  document.getElementById('er-btn').disabled = false;
+}
+
+document.getElementById('er-ticker').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateReport();
+});
+</script>
+</body>
+</html>
